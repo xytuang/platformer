@@ -1,6 +1,10 @@
 import sys
 import pygame
 
+from scripts.entities import PhysicsEntity
+from scripts.utils import load_image, load_images
+from scripts.tilemap import Tilemap
+
 class Game:
     def __init__(self):
         pygame.init()
@@ -9,29 +13,31 @@ class Game:
 
         self.screen = pygame.display.set_mode((640,480)) #creates window, 640, 480 is resolution
 
+        self.display = pygame.Surface((320, 240)) # second surface for rendering. render onto this then scale up
+
 
         self.clock = pygame.time.Clock() # set time interval of 60fps for game loop
 
-        self.img = pygame.image.load("data/images/clouds/cloud_1.png")
-        self.img.set_colorkey((0,0,0)) #color to be replaced with transparency on render
-
-        self.img_pos = [160,260]
         self.movement = [False, False]
 
-        self.collision_area = pygame.Rect(50,50, 300, 50)
+        self.assets = {
+            'decor' : load_images('tiles/decor'),
+            'grass' : load_images('tiles/grass'),
+            'large_decor' : load_images('tiles/large_decor'),
+            'stone' : load_images('tiles/stone'),
+            'player': load_image('entities/player.png')
+        }
+        
+        self.player = PhysicsEntity(self, 'player', (50,50), (8, 15))
+
+        self.tilemap = Tilemap(self, tile_size=16)
     
     def run(self):
         while True:
-            self.screen.fill((14, 219, 248)) #takes rgb value and fill screen with that color, essentially a reset
-             #first two args are top left position, next 2 are width and height of rectangle
-            img_r = pygame.Rect(self.img_pos[0], self.img_pos[1], self.img.get_width(), self.img.get_height())
-            if img_r.colliderect(self.collision_area):
-                pygame.draw.rect(self.screen, (0,100,255), self.collision_area)
-            else:
-                pygame.draw.rect(self.screen, (0,50,155), self.collision_area)
-            self.img_pos[1] += (self.movement[1] - self.movement[0]) * 5
-            self.screen.blit(self.img, self.img_pos) #draw cloud at position img_pos, (0,0) starts at the top left corner, layering surfaces on top of each other
-            
+            self.display.fill((14, 219, 248)) #takes rgb value and fill screen with that color, essentially a reset
+            self.tilemap.render(self.display)
+            self.player.update(self.tilemap, (self.movement[1] - self.movement[0], 0))
+            self.player.render(self.display)
 
             for event in pygame.event.get(): #event is equivalent to user input
                 if event.type == pygame.QUIT:
@@ -39,18 +45,20 @@ class Game:
                     sys.exit()
                 
                 if event.type == pygame.KEYDOWN: #only tracks whether key is pressed down, not held down
-                    if event.key == pygame.K_UP:
+                    if event.key == pygame.K_LEFT:
                         self.movement[0] = True
-                    if event.key == pygame.K_DOWN:
+                    if event.key == pygame.K_RIGHT:
                         self.movement[1] = True
+                    if event.key == pygame.K_UP:
+                        self.player.velocity[1] = -3
 
                 if event.type == pygame.KEYUP: #only tracks whether key is released, not held down
-                    if event.key == pygame.K_UP:
+                    if event.key == pygame.K_LEFT:
                         self.movement[0] = False
-                    if event.key == pygame.K_DOWN:
+                    if event.key == pygame.K_RIGHT:
                         self.movement[1] = False
-                
-
+            
+            self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()), (0,0)) # scale up display to size of screen then lay it on top of screen
             pygame.display.update() #draw onto screen
             self.clock.tick(60) # set time interval of 60fps
 
